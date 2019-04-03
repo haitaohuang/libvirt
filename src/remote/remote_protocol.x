@@ -260,6 +260,9 @@ const REMOTE_DOMAIN_IOTHREAD_PARAMS_MAX = 64;
 /* Upper limit on number of SEV parameters */
 const REMOTE_NODE_SEV_INFO_MAX = 64;
 
+/* Upper limit on number of MKTME parameters */
+const REMOTE_NODE_MKTME_INFO_MAX = 64;
+
 /* Upper limit on number of launch security information entries */
 const REMOTE_DOMAIN_LAUNCH_SECURITY_INFO_PARAMS_MAX = 64;
 
@@ -3573,6 +3576,16 @@ struct remote_connect_get_storage_pool_capabilities_ret {
     remote_nonnull_string capabilities;
 };
 
+struct remote_node_get_mktme_info_args {
+    int nparams;
+    unsigned int flags;
+};
+
+struct remote_node_get_mktme_info_ret {
+    remote_typed_param params<REMOTE_NODE_MKTME_INFO_MAX>;
+    int nparams;
+};
+
 /*----- Protocol. -----*/
 
 /* Define the program number, protocol version and procedure numbers here. */
@@ -6342,5 +6355,11 @@ enum remote_procedure {
      * @generate: both
      * @acl: connect:read
      */
-    REMOTE_PROC_CONNECT_GET_STORAGE_POOL_CAPABILITIES = 403
+    REMOTE_PROC_CONNECT_GET_STORAGE_POOL_CAPABILITIES = 403,
+
+	/**
+     * @generate: none
+     * @acl: connect:read
+     */
+    REMOTE_PROC_NODE_GET_MKTME_INFO = 404
 };

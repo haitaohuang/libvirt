@@ -1233,6 +1233,7 @@ VIR_ENUM_IMPL(virDomainLaunchSecurity,
               VIR_DOMAIN_LAUNCH_SECURITY_LAST,
               "",
               "sev",
+              "mktme",
 );
 
 static virClassPtr virDomainObjClass;
@@ -3281,6 +3282,22 @@ virDomainSEVDefFree(virDomainSEVDefPtr def)
     VIR_FREE(def);
 }
 
+static void
+virDomainMKTMEDefFree(virDomainMKTMEDefPtr def)
+{
+	if (!def)
+		return;
+
+	VIR_FREE(def->id);
+	VIR_FREE(def->key_type);
+	VIR_FREE(def->key);
+	VIR_FREE(def->encryption_algorithm);
+
+
+	VIR_FREE(def);
+}
+
+
 
 void virDomainDefFree(virDomainDefPtr def)
 {
@@ -3466,6 +3483,7 @@ void virDomainDefFree(virDomainDefPtr def)
         (def->ns.free)(def->namespaceData);
 
     virDomainSEVDefFree(def->sev);
+	virDomainMKTMEDefFree(def->mktme);
 
     xmlFreeNode(def->metadata);
 
@@ -15939,6 +15957,21 @@ virDomainMemoryTargetDefParseXML(xmlNodePtr node,
     return ret;
 }
 
+static int
+virDomainGetLaunchSecurityType(xmlNodePtr node)
+{
+	VIR_AUTOFREE(char *) type = NULL;
+
+	if (!(type = virXMLPropString(node, "type"))) {
+		virReportError(VIR_ERR_XML_ERROR, "%s",
+			_("missing launch security type"));
+		return -1;
+	}
+
+	return virDomainLaunchSecurityTypeFromString(type);
+
+}
+
 
 static virDomainSEVDefPtr
 virDomainSEVDefParseXML(xmlNodePtr sevNode,
@@ -15965,6 +15998,7 @@ virDomainSEVDefParseXML(xmlNodePtr sevNode,
     case VIR_DOMAIN_LAUNCH_SECURITY_SEV:
         break;
     case VIR_DOMAIN_LAUNCH_SECURITY_NONE:
+	case VIR_DOMAIN_LAUNCH_SECURITY_MKTME:
     case VIR_DOMAIN_LAUNCH_SECURITY_LAST:
     default:
         virReportError(VIR_ERR_XML_ERROR,
@@ -16003,6 +16037,28 @@ virDomainSEVDefParseXML(xmlNodePtr sevNode,
     virDomainSEVDefFree(def);
     def = NULL;
     goto cleanup;
+}
+
+static virDomainMKTMEDefPtr
+virDomainMKTMEDefParseXML(xmlNodePtr mktmeNode,
+	xmlXPathContextPtr ctxt)
+{
+	VIR_XPATH_NODE_AUTORESTORE(ctxt);
+	virDomainMKTMEDefPtr def;
+
+	if (VIR_ALLOC(def) < 0)
+		return NULL;
+
+	ctxt->node = mktmeNode;
+
+	def->sectype = VIR_DOMAIN_LAUNCH_SECURITY_MKTME;
+
+	def->id = virXPathString("string(./id)", ctxt);
+	def->key_type = virXPathString("string(./key_type)", ctxt);
+	def->key = virXPathString("string(./key)", ctxt);
+	def->encryption_algorithm = virXPathString("string(./encryption_algorithm)", ctxt);
+
+	return def;
 }
 
 static virDomainMemoryDefPtr
@@ -21127,11 +21183,33 @@ virDomainDefParseXML(xmlDocPtr xml,
     ctxt->node = node;
     VIR_FREE(nodes);
 
-    /* Check for SEV feature */
+    /* Check for launch security (MKTME/SEV) feature */
     if ((node = virXPathNode("./launchSecurity", ctxt)) != NULL) {
-        def->sev = virDomainSEVDefParseXML(node, ctxt);
-        if (!def->sev)
-            goto error;
+		int sectype = virDomainGetLaunchSecurityType(node);
+
+		if (sectype < 0)
+			goto error;
+
+		switch ((virDomainLaunchSecurity) sectype) {
+		case VIR_DOMAIN_LAUNCH_SECURITY_SEV:
+			def->sev = virDomainSEVDefParseXML(node, ctxt);
+			if (!def->sev)
+				goto error;
+			break;
+		case VIR_DOMAIN_LAUNCH_SECURITY_MKTME:
+			def->mktme = virDomainMKTMEDefParseXML(node, ctxt);
+			if (!def->mktme)
+				goto error;
+			break;
+		case VIR_DOMAIN_LAUNCH_SECURITY_NONE:
+		case VIR_DOMAIN_LAUNCH_SECURITY_LAST:
+		default:
+			virReportError(VIR_ERR_XML_ERROR,
+				_("unsupported launch security type '%s'"),
+				virXMLPropString(node, "type"));
+			goto error;
+		}
+
     }
 
     /* analysis of memory devices */
@@ -27263,6 +27341,33 @@ virDomainSEVDefFormat(virBufferPtr buf, virDomainSEVDefPtr sev)
     virBufferAddLit(buf, "</launchSecurity>\n");
 }
 
+static void
+virDomainMKTMEDefFormat(virBufferPtr buf, virDomainMKTMEDefPtr mktme)
+{
+	if (!mktme)
+		return;
+
+	virBufferAsprintf(buf, "<launchSecurity type='%s'>\n",
+		virDomainLaunchSecurityTypeToString(mktme->sectype));
+	virBufferAdjustIndent(buf, 2);
+
+	if (mktme->id)
+		virBufferEscapeString(buf, "<id>%s</id>\n", mktme->id);
+
+	if (mktme->key_type)
+		virBufferEscapeString(buf, "<key_type>%s</key_type>\n", mktme->key_type);
+
+	if (mktme->key)
+		virBufferEscapeString(buf, "<key>%s</key>\n", mktme->key);
+
+	if (mktme->encryption_algorithm)
+		virBufferEscapeString(buf, "<encryption_algorithm>%s</encryption_algorithm>\n", mktme->encryption_algorithm);
+
+
+	virBufferAdjustIndent(buf, -2);
+	virBufferAddLit(buf, "</launchSecurity>\n");
+}
+
 
 static void
 virDomainPerfDefFormat(virBufferPtr buf, virDomainPerfDefPtr perf)
@@ -28636,6 +28741,7 @@ virDomainDefFormatInternal(virDomainDefPtr def,
         virDomainKeyWrapDefFormat(buf, def->keywrap);
 
     virDomainSEVDefFormat(buf, def->sev);
+	virDomainMKTMEDefFormat(buf, def->mktme);
 
     virBufferAdjustIndent(buf, -2);
     virBufferAddLit(buf, "</domain>\n");

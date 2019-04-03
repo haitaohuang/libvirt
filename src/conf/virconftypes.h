@@ -346,4 +346,7 @@ typedef virDomainXMLPrivateDataCallbacks *virDomainXMLPrivateDataCallbacksPtr;
 typedef struct _virDomainXenbusControllerOpts virDomainXenbusControllerOpts;
 typedef virDomainXenbusControllerOpts *virDomainXenbusControllerOptsPtr;
 
+typedef struct _virDomainMKTMEDef virDomainMKTMEDef;
+typedef virDomainMKTMEDef *virDomainMKTMEDefPtr;
+
 #endif /* LIBVIRT_VIRCONFTYPES_H */

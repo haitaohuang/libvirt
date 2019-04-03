@@ -530,5 +530,23 @@
       address space. The number of bits we lose is hypervisor dependent.</dd>
     </dl>
 
+	<h4><a id="elementsMKTME">MKTME capabilities</a></h4>
+
+    <p>Intel Multi-Key Total Memory Encryption (MKTME) capabilities are exposed under
+    the <code>mktme</code> element.
+    Total Memory Encryption (TME) – provides the capability to encrypt the
+	entirety of the physical memory of a system. MKTME builds on TME and
+	adds support for multiple encryption keys.</p>
+
+    <p>
+    For more details on MKTME feature see:
+      <a href="https://software.intel.com/sites/default/files/managed/a5/16/Multi-Key-Total-Memory-Encryption-Spec.pdf">MKTME spec</a>
+    </p>
+
+    <dl>
+      <dt><code>keys_supported</code></dt>
+      <dd>When mktme is enabled, keys_supported information is avaiable</dd>
+    </dl>
+
   </body>
 </html>

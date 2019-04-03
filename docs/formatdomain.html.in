@@ -8924,13 +8924,16 @@ qemu-kvm -net nic,model=? /dev/null
 
     <p>Note: DEA/TDEA is synonymous with DES/TDES.</p>
 
-    <h3><a id="sev">Launch Security</a></h3>
+    <h3><a id="launchsecurity">Launch Security</a></h3>
 
     <p>
-       The contents of the <code>&lt;launchSecurity type='sev'&gt;</code> element
+       The contents of the <code>launchSecurity</code> element
        is used to provide the guest owners input used for creating an encrypted
-       VM using the AMD SEV feature (Secure Encrypted Virtualization).
-
+       VM using the AMD SEV feature (Secure Encrypted Virtualization)
+	   and Intel MKTME (Multi-Key Total Memory Encryption).
+    </p>
+	<h4><a id="sev">SEV</a></h4>
+	<p>
        SEV is an extension to the AMD-V architecture which supports running
        encrypted virtual machine (VMs) under the control of KVM. Encrypted
        VMs have their pages (code and data) secured such that only the guest
@@ -8942,7 +8945,7 @@ qemu-kvm -net nic,model=? /dev/null
        For more information see various input parameters and its format see the
        <a href="https://support.amd.com/TechDocs/55766_SEV-KM_API_Specification.pdf">SEV API spec</a>
        <span class="since">Since 4.4.0</span>
-       </p>
+	</p>
     <pre>
 &lt;domain&gt;
   ...
@@ -9036,6 +9039,55 @@ qemu-kvm -net nic,model=? /dev/null
       base64 encoded session blob defined in the SEV API spec.
 
       See SEV spec LAUNCH_START section for the session blob format.
+      </dd>
+    </dl>
+
+	<h4><a id="mktme">MKTME</a></h4>
+	<p>
+      Total Memory Encryption (TME) – provides the capability to encrypt the
+	  entirety of the physical memory of a system. MKTME builds on TME and
+	  adds support for multiple encryption keys.
+
+	  By default MKTME uses the TME encryption key unless explicitly specified
+	  by software. In addition to supporting a CPU generated ephemeral
+      key (not accessible by software or by using external interfaces to an SOC),
+	  MKTME also supports software provided keys. Software provided keys are
+	  particularly useful when used with nonvolatile memory or when combined
+	  with attestation mechanisms and/or used with key provisioning services.
+
+	  For more information see
+       <a href="https://support.amd.com/TechDocs/55766_SEV-KM_API_Specification.pdf">MKTME spec</a>
+       <span class="since">Since 5.3.0</span>
+	</p>
+	    <pre>
+&lt;domain&gt;
+  ...
+  &lt;launchSecurity type='mktme'&gt;
+    &lt;id&gt;mktme-0&lt;/id&gt;
+    &lt;key_type&gt;samplekey&lt;/key_type&gt;
+    &lt;type&gt;user&lt;/type&gt;
+    &lt;encryption_algorithm&gt;aes-xts-128&lt;/encryption_algorithm&gt;
+  &lt;/launchSecurity&gt;
+  ...
+&lt;/domain&gt;
+</pre>
+    <dl>
+      <dt><code>id</code></dt>
+      <dd>The required <code>id</code> element provides ability to map the key handle.
+	  If the id exists system returns the same mapped key handle which can be used to 
+	  encrpyt a different guest. 
+      </dd>
+      <dt><code>key_type</code></dt>
+      <dd>MKTME supports user and cpu generated keys. The required <code>key_type</code>
+	  element provides the type of key used for the encryption.
+      </dd>
+      <dt><code>key</code></dt>
+      <dd>The optional <code>key</code> element provides the key used for the encryption.
+	  Required only when the key type is of user.
+      </dd>
+      <dt><code>encryption_algorithm</code></dt>
+      <dd>The required <code>encyption_algorithm</code> element provides the type of 
+	  encryption algorithm. Currently, MKTME supports aes-xts-128 only.
       </dd>
     </dl>
 

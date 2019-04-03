@@ -3921,6 +3921,15 @@ qemuMonitorGetSEVCapabilities(qemuMonitorPtr mon,
     return qemuMonitorJSONGetSEVCapabilities(mon, capabilities);
 }
 
+int
+qemuMonitorGetMKTMECapabilities(qemuMonitorPtr mon,
+				virMKTMECapability **capabilities)
+{
+	QEMU_CHECK_MONITOR(mon);
+
+	return qemuMonitorJSONGetMKTMECapabilities(mon, capabilities);
+}
+
 
 int
 qemuMonitorNBDServerStart(qemuMonitorPtr mon,

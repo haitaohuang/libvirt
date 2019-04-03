@@ -6654,6 +6654,58 @@ qemuMonitorJSONGetSEVCapabilities(qemuMonitorPtr mon,
     return ret;
 }
 
+int
+qemuMonitorJSONGetMKTMECapabilities(qemuMonitorPtr mon,
+	virMKTMECapability **capabilities)
+{
+	int ret = -1;
+	virJSONValuePtr cmd;
+	virJSONValuePtr reply = NULL;
+	virJSONValuePtr caps;
+	unsigned int keys_supported;
+	VIR_AUTOPTR(virMKTMECapability) capability = NULL;
+
+	*capabilities = NULL;
+
+	/* Query may change*/
+	if (!(cmd = qemuMonitorJSONMakeCommand("query-mktme-capabilities",
+		NULL)))
+		return -1;
+
+	if (qemuMonitorJSONCommand(mon, cmd, &reply) < 0)
+		goto cleanup;
+
+	if (qemuMonitorJSONHasError(reply, "GenericError")) {
+		ret = 0;
+		goto cleanup;
+	}
+
+	if (qemuMonitorJSONCheckError(cmd, reply) < 0)
+		goto cleanup;
+
+	caps = virJSONValueObjectGetObject(reply, "return");
+
+	if (virJSONValueObjectGetNumberUint(caps, "keys_supported", &keys_supported) < 0) {
+		virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+			_("query-mktme-capabilities reply was missing"
+				" 'keys_supported' field"));
+		goto cleanup;
+	}
+
+	if (VIR_ALLOC(capability) < 0)
+		goto cleanup;
+
+	capability->keys_supported = keys_supported;
+	VIR_STEAL_PTR(*capabilities, capability);
+	ret = 1;
+cleanup:
+	virJSONValueFree(cmd);
+	virJSONValueFree(reply);
+
+	return ret;
+}
+
+
 static virJSONValuePtr
 qemuMonitorJSONBuildInetSocketAddress(const char *host,
                                       const char *port)

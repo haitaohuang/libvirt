@@ -150,6 +150,12 @@ struct _virSEVCapability {
     unsigned int reduced_phys_bits;
 };
 
+typedef struct _virMKTMECapability virMKTMECapability;
+typedef virMKTMECapability *virMKTMECapabilityPtr;
+struct _virMKTMECapability {
+	unsigned int keys_supported;
+};
+
 struct _virDomainCaps {
     virObjectLockable parent;
 
@@ -174,6 +180,7 @@ struct _virDomainCaps {
     virTristateBool vmcoreinfo;
     virTristateBool genid;
     virSEVCapabilityPtr sev;
+    virMKTMECapabilityPtr mktme;
     /* add new domain features here */
 };
 
@@ -221,5 +228,10 @@ void
 virSEVCapabilitiesFree(virSEVCapability *capabilities);
 
 VIR_DEFINE_AUTOPTR_FUNC(virSEVCapability, virSEVCapabilitiesFree);
+
+void
+virMKTMECapabilitiesFree(virMKTMECapability *capabilities);
+
+VIR_DEFINE_AUTOPTR_FUNC(virMKTMECapability, virMKTMECapabilitiesFree);
 
 #endif /* LIBVIRT_DOMAIN_CAPABILITIES_H */

@@ -525,6 +525,7 @@ VIR_ENUM_IMPL(virQEMUCaps,
               "virtio-pci-non-transitional",
               "overcommit",
               "query-current-machine",
+	          "mktme-guest"
     );
 
 
@@ -594,6 +595,8 @@ struct _virQEMUCaps {
     virGICCapability *gicCapabilities;
 
     virSEVCapability *sevCapabilities;
+
+    virMKTMECapability *mktmeCapabilities;
 
     virQEMUCapsHostCPUData kvmCPU;
     virQEMUCapsHostCPUData tcgCPU;
@@ -1090,6 +1093,7 @@ struct virQEMUCapsStringFlags virQEMUCapsObjectTypes[] = {
     { "vhost-vsock-device", QEMU_CAPS_DEVICE_VHOST_VSOCK },
     { "mch", QEMU_CAPS_DEVICE_MCH },
     { "sev-guest", QEMU_CAPS_SEV_GUEST },
+    { "mktme-guest", QEMU_CAPS_MKTME_GUEST },
     { "vfio-ap", QEMU_CAPS_DEVICE_VFIO_AP },
     { "zpci", QEMU_CAPS_DEVICE_ZPCI },
     { "memory-backend-memfd", QEMU_CAPS_OBJECT_MEMORY_MEMFD },
@@ -1541,6 +1545,22 @@ virQEMUCapsSEVInfoCopy(virSEVCapabilityPtr *dst,
     return 0;
 }
 
+static int
+virQEMUCapsMKTMEInfoCopy(virMKTMECapabilityPtr *dst,
+			 virMKTMECapabilityPtr src)
+{
+	VIR_AUTOPTR(virMKTMECapability) tmp = NULL;
+
+	if (VIR_ALLOC(tmp) < 0 )
+		return -1;
+
+	tmp->keys_supported = src->keys_supported;
+
+	VIR_STEAL_PTR(*dst, tmp);
+	return 0;
+}
+
+
 
 virQEMUCapsPtr virQEMUCapsNewCopy(virQEMUCapsPtr qemuCaps)
 {
@@ -1612,6 +1632,12 @@ virQEMUCapsPtr virQEMUCapsNewCopy(virQEMUCapsPtr qemuCaps)
                                qemuCaps->sevCapabilities) < 0)
         goto error;
 
+    if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_MKTME_GUEST) &&
+	virQEMUCapsMKTMEInfoCopy(&ret->mktmeCapabilities,
+			qemuCaps->mktmeCapabilities) < 0)
+	goto error;
+
+
     return ret;
 
  error:
@@ -1643,6 +1669,7 @@ void virQEMUCapsDispose(void *obj)
     VIR_FREE(qemuCaps->gicCapabilities);
 
     virSEVCapabilitiesFree(qemuCaps->sevCapabilities);
+    virMKTMECapabilitiesFree(qemuCaps->mktmeCapabilities);
 
     virQEMUCapsHostCPUDataClear(&qemuCaps->kvmCPU);
     virQEMUCapsHostCPUDataClear(&qemuCaps->tcgCPU);
@@ -2097,6 +2124,12 @@ virSEVCapabilityPtr
 virQEMUCapsGetSEVCapabilities(virQEMUCapsPtr qemuCaps)
 {
     return qemuCaps->sevCapabilities;
+}
+
+virMKTMECapabilityPtr
+virQEMUCapsGetMKTMECapabilities(virQEMUCapsPtr qemuCaps)
+{
+	return qemuCaps->mktmeCapabilities;
 }
 
 
@@ -2768,6 +2801,30 @@ virQEMUCapsProbeQMPSEVCapabilities(virQEMUCapsPtr qemuCaps,
     return 0;
 }
 
+/* Returns -1 on error, 0 if MKTME is not supported, 1 if MKTME is supported */
+static int
+virQEMUCapsProbeQMPMKTMECapabilities(virQEMUCapsPtr qemuCaps,
+	qemuMonitorPtr mon)
+{
+	int rc = -1;
+	virMKTMECapability *caps = NULL;
+
+	if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_MKTME_GUEST))
+		return 0;
+	if ((rc = qemuMonitorGetMKTMECapabilities(mon, &caps)) < 0)
+		return -1;
+
+	/* MKTME isn't actually supported */
+	if (rc == 0) {
+		virQEMUCapsClear(qemuCaps, QEMU_CAPS_MKTME_GUEST);
+		return 0;
+	}
+
+	virMKTMECapabilitiesFree(qemuCaps->mktmeCapabilities);
+	qemuCaps->mktmeCapabilities = caps;
+	return 0;
+}
+
 
 bool
 virQEMUCapsCPUFilterFeatures(const char *name,
@@ -3397,6 +3454,35 @@ virQEMUCapsParseSEVInfo(virQEMUCapsPtr qemuCaps, xmlXPathContextPtr ctxt)
     return 0;
 }
 
+static int
+virQEMUCapsParseMKTMEInfo(virQEMUCapsPtr qemuCaps, xmlXPathContextPtr ctxt)
+{
+	VIR_AUTOPTR(virMKTMECapability) mktme = NULL;
+
+	if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_MKTME_GUEST))
+		return 0;
+
+	if (virXPathBoolean("boolean(./mktme)", ctxt) == 0) {
+		virReportError(VIR_ERR_XML_ERROR, "%s",
+			_("missing MKTME platform data in QEMU "
+				"capabilities cache"));
+		return -1;
+	}
+
+	if (VIR_ALLOC(mktme) < 0)
+		return -1;
+
+	if (virXPathUInt("string(./mktme/keys_supported)", ctxt, &mktme->keys_supported) < 0) {
+		virReportError(VIR_ERR_XML_ERROR, "%s",
+			_("missing or malformed MKTME keys_supported information "
+				"in QEMU capabilities cache"));
+		return -1;
+	}
+
+	VIR_STEAL_PTR(qemuCaps->mktmeCapabilities, mktme);
+	return 0;
+}
+
 
 /*
  * Parsing a doc that looks like
@@ -3650,6 +3736,10 @@ virQEMUCapsLoadCache(virArch hostArch,
     if (virQEMUCapsParseSEVInfo(qemuCaps, ctxt) < 0)
         goto cleanup;
 
+    if (virQEMUCapsParseMKTMEInfo(qemuCaps, ctxt) < 0)
+	goto cleanup;
+
+
     virQEMUCapsInitHostCPUModel(qemuCaps, hostArch, VIR_DOMAIN_VIRT_KVM);
     virQEMUCapsInitHostCPUModel(qemuCaps, hostArch, VIR_DOMAIN_VIRT_QEMU);
 
@@ -3786,6 +3876,17 @@ virQEMUCapsFormatSEVInfo(virQEMUCapsPtr qemuCaps, virBufferPtr buf)
     virBufferAddLit(buf, "</sev>\n");
 }
 
+static void
+virQEMUCapsFormatMKTMEInfo(virQEMUCapsPtr qemuCaps, virBufferPtr buf)
+{
+	virMKTMECapabilityPtr mktme = virQEMUCapsGetMKTMECapabilities(qemuCaps);
+
+	virBufferAddLit(buf, "<mktme>\n");
+	virBufferAdjustIndent(buf, 2);
+	virBufferAsprintf(buf, "<keys_supported>%u</keys_supported>\n", mktme->keys_supported);
+	virBufferAdjustIndent(buf, -2);
+	virBufferAddLit(buf, "</mktme>\n");
+}
 
 char *
 virQEMUCapsFormatCache(virQEMUCapsPtr qemuCaps)
@@ -3806,7 +3907,7 @@ virQEMUCapsFormatCache(virQEMUCapsPtr qemuCaps)
 
     for (i = 0; i < QEMU_CAPS_LAST; i++) {
         if (virQEMUCapsGet(qemuCaps, i)) {
-            virBufferAsprintf(&buf, "<flag name='%s'/>\n",
+			virBufferAsprintf(&buf, "<flag name='%s'/>\n",
                               virQEMUCapsTypeToString(i));
         }
     }
@@ -3870,6 +3971,9 @@ virQEMUCapsFormatCache(virQEMUCapsPtr qemuCaps)
 
     if (qemuCaps->sevCapabilities)
         virQEMUCapsFormatSEVInfo(qemuCaps, &buf);
+
+    if (qemuCaps->mktmeCapabilities)
+	virQEMUCapsFormatMKTMEInfo(qemuCaps, &buf);
 
     if (qemuCaps->kvmSupportsNesting)
         virBufferAddLit(&buf, "<kvmSupportsNesting/>\n");
@@ -4373,6 +4477,8 @@ virQEMUCapsInitQMPMonitor(virQEMUCapsPtr qemuCaps,
         return -1;
     if (virQEMUCapsProbeQMPSEVCapabilities(qemuCaps, mon) < 0)
         return -1;
+    if (virQEMUCapsProbeQMPMKTMECapabilities(qemuCaps, mon) < 0)
+	return -1;
 
     virQEMUCapsInitProcessCaps(qemuCaps);
 
@@ -5325,6 +5431,25 @@ virQEMUCapsFillDomainFeatureSEVCaps(virQEMUCapsPtr qemuCaps,
     return 0;
 }
 
+static int
+virQEMUCapsFillDomainFeatureMKTMECaps(virQEMUCapsPtr qemuCaps,
+				      virDomainCapsPtr domCaps)
+{
+	virMKTMECapability *cap = qemuCaps->mktmeCapabilities;
+	VIR_AUTOPTR(virMKTMECapability) mktme = NULL;
+
+	if (!cap)
+		return 0;
+
+	if (VIR_ALLOC(mktme) < 0)
+		return -1;
+
+	mktme->keys_supported = cap->keys_supported;
+	VIR_STEAL_PTR(domCaps->mktme, mktme);
+
+	return 0;
+}
+
 
 int
 virQEMUCapsFillDomainCaps(virCapsPtr caps,
@@ -5370,7 +5495,8 @@ virQEMUCapsFillDomainCaps(virCapsPtr caps,
         virQEMUCapsFillDomainDeviceVideoCaps(qemuCaps, video) < 0 ||
         virQEMUCapsFillDomainDeviceHostdevCaps(qemuCaps, hostdev) < 0 ||
         virQEMUCapsFillDomainFeatureGICCaps(qemuCaps, domCaps) < 0 ||
-        virQEMUCapsFillDomainFeatureSEVCaps(qemuCaps, domCaps) < 0)
+        virQEMUCapsFillDomainFeatureSEVCaps(qemuCaps, domCaps) < 0 || 
+	virQEMUCapsFillDomainFeatureMKTMECaps(qemuCaps, domCaps) < 0)
         return -1;
 
     return 0;

@@ -189,6 +189,7 @@ virDomainCapsEnumClear;
 virDomainCapsEnumSet;
 virDomainCapsFormat;
 virDomainCapsNew;
+virMKTMECapabilitiesFree;
 virSEVCapabilitiesFree;
 
 
@@ -2352,6 +2353,9 @@ virMediatedDeviceSetUsedBy;
 virMediatedDeviceTypeFree;
 virMediatedDeviceTypeReadAttrs;
 
+# util/virmktme.h
+virGetMktmeKeyHandle;
+virMktmeIsEnabled;
 
 # util/virmodule.h
 virModuleLoad;
@@ -3313,6 +3317,7 @@ virXPathUInt;
 virXPathULong;
 virXPathULongHex;
 virXPathULongLong;
+
 
 
 # Let emacs know we want case-insensitive sorting

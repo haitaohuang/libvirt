@@ -78,6 +78,15 @@ virSEVCapabilitiesFree(virSEVCapability *cap)
     VIR_FREE(cap);
 }
 
+void
+virMKTMECapabilitiesFree(virMKTMECapability *cap)
+{
+	if (!cap)
+		return;
+
+	VIR_FREE(cap);
+}
+
 
 static void
 virDomainCapsDispose(void *obj)
@@ -89,6 +98,7 @@ virDomainCapsDispose(void *obj)
     virObjectUnref(caps->cpu.custom);
     virCPUDefFree(caps->cpu.hostModel);
     virSEVCapabilitiesFree(caps->sev);
+    virMKTMECapabilitiesFree(caps->mktme);
 
     virDomainCapsStringValuesFree(&caps->os.loader.values);
 }
@@ -593,6 +603,24 @@ virDomainCapsFeatureSEVFormat(virBufferPtr buf,
     return;
 }
 
+static void
+virDomainCapsFeatureMKTMEFormat(virBufferPtr buf,
+	virMKTMECapabilityPtr const mktme)
+{
+	if (!mktme) {
+		virBufferAddLit(buf, "<mktme supported='no'/>\n");
+	}
+	else {
+		virBufferAddLit(buf, "<mktme supported='yes'>\n");
+		virBufferAdjustIndent(buf, 2);
+		virBufferAsprintf(buf, "<keys_supported>%d</keys_supported>\n", mktme->keys_supported);
+		virBufferAdjustIndent(buf, -2);
+		virBufferAddLit(buf, "</mktme>\n");
+	}
+
+	return;
+}
+
 
 char *
 virDomainCapsFormat(virDomainCapsPtr const caps)
@@ -636,6 +664,7 @@ virDomainCapsFormat(virDomainCapsPtr const caps)
     FORMAT_SINGLE("vmcoreinfo", caps->vmcoreinfo);
     FORMAT_SINGLE("genid", caps->genid);
     virDomainCapsFeatureSEVFormat(&buf, caps->sev);
+    virDomainCapsFeatureMKTMEFormat(&buf, caps->mktme);
 
     virBufferAdjustIndent(&buf, -2);
     virBufferAddLit(&buf, "</features>\n");

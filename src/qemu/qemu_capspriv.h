@@ -95,6 +95,10 @@ void
 virQEMUCapsSetSEVCapabilities(virQEMUCapsPtr qemuCaps,
                               virSEVCapability *capabilities);
 
+void
+virQEMUCapsSetMKTMECapabilities(virQEMUCapsPtr qemuCaps,
+	virMKTMECapability *capabilities);
+
 int
 virQEMUCapsProbeQMPCPUDefinitions(virQEMUCapsPtr qemuCaps,
                                   qemuMonitorPtr mon,

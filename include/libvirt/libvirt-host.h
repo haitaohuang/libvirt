@@ -474,6 +474,24 @@ int virNodeGetSEVInfo (virConnectPtr conn,
                        unsigned int flags);
 
 /**
+*
+* MKTME Parameters
+*/
+
+/**
+* VIR_NODE_MKTME_KEYS_SUPPORTED:
+*
+* Macro represents the number of keys supported, when MKTME is enabled in the guest.
+*/
+# define VIR_NODE_MKTME_KEYS_SUPPORTED "keys_supported"
+
+int virNodeGetMKTMEInfo(virConnectPtr conn,
+						virTypedParameterPtr *params,
+						int *nparams,
+						unsigned int flags);
+
+
+/**
  * virConnectFlags
  *
  * Flags when opening a connection to a hypervisor

@@ -228,6 +228,8 @@ UTIL_SOURCES = \
 	util/virmdev.h \
 	util/virfilecache.c \
 	util/virfilecache.h \
+	util/virmktme.c \
+	util/virmktme.h \
 	$(NULL)
 
 

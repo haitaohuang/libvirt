@@ -22260,6 +22260,68 @@ qemuNodeGetSEVInfo(virConnectPtr conn,
 
 
 static int
+qemuGetMKTMEInfoToParams(virQEMUCapsPtr qemuCaps,
+	virTypedParameterPtr *params,
+	int *nparams,
+	unsigned int flags)
+{
+	int maxpar = 0;
+	int n = 0;
+	virMKTMECapabilityPtr mktme = virQEMUCapsGetMKTMECapabilities(qemuCaps);
+	virTypedParameterPtr mktmeParams = NULL;
+
+	virCheckFlags(VIR_TYPED_PARAM_STRING_OKAY, -1);
+
+	if (virTypedParamsAddUInt(&mktmeParams, &n, &maxpar,
+		VIR_NODE_MKTME_KEYS_SUPPORTED, mktme->keys_supported) < 0)
+	    goto cleanup;
+
+	VIR_STEAL_PTR(*params, mktmeParams);
+	*nparams = n;
+	return 0;
+
+cleanup:
+	virTypedParamsFree(mktmeParams, n);
+	return -1;
+}
+
+
+static int
+qemuNodeGetMKTMEInfo(virConnectPtr conn,
+	virTypedParameterPtr *params,
+	int *nparams,
+	unsigned int flags)
+{
+	virQEMUDriverPtr driver = conn->privateData;
+	virQEMUCapsPtr qemucaps = NULL;
+	int ret = -1;
+
+	if (virNodeGetMktmeInfoEnsureACL(conn) < 0)
+	    return ret;
+
+	qemucaps = virQEMUCapsCacheLookupByArch(driver->qemuCapsCache,
+						virArchFromHost());
+	if (!qemucaps)
+	    goto cleanup;
+
+	if (!virQEMUCapsGet(qemucaps, QEMU_CAPS_MKTME_GUEST)) {
+	    virReportError(VIR_ERR_OPERATION_UNSUPPORTED, "%s",
+		_("QEMU does not support MKTME guest"));
+	    goto cleanup;
+	}
+
+	if (qemuGetMKTMEInfoToParams(qemucaps, params, nparams, flags) < 0)
+	    goto cleanup;
+
+	ret = 0;
+
+cleanup:
+	virObjectUnref(qemucaps);
+	return ret;
+}
+
+
+static int
 qemuDomainGetSEVMeasurement(virQEMUDriverPtr driver,
                             virDomainObjPtr vm,
                             virTypedParameterPtr *params,
@@ -22553,6 +22615,7 @@ static virHypervisorDriver qemuHypervisorDriver = {
     .connectBaselineHypervisorCPU = qemuConnectBaselineHypervisorCPU, /* 4.4.0 */
     .nodeGetSEVInfo = qemuNodeGetSEVInfo, /* 4.5.0 */
     .domainGetLaunchSecurityInfo = qemuDomainGetLaunchSecurityInfo, /* 4.5.0 */
+    .nodeGetMKTMEInfo = qemuNodeGetMKTMEInfo /* 5.3.0 */
 };
 
 
