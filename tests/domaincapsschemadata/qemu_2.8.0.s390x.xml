@@ -168,5 +168,6 @@
     <vmcoreinfo supported='no'/>
     <genid supported='no'/>
     <sev supported='no'/>
+    <mktme supported='no'/>
   </features>
 </domainCapabilities>

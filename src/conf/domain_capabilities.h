@@ -180,6 +180,7 @@ struct _virDomainCaps {
     virTristateBool vmcoreinfo;
     virTristateBool genid;
     virSEVCapabilityPtr sev;
+    virMKTMECapabilityPtr mktme;
     /* add new domain features here */
 };
 

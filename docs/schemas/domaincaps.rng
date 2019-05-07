@@ -200,6 +200,9 @@
       <optional>
         <ref name='sev'/>
       </optional>
+      <optional>
+        <ref name='mktme'/>
+      </optional>
     </element>
   </define>
 
@@ -230,6 +233,17 @@
           <data type='unsignedInt'/>
         </element>
         <element name='reducedPhysBits'>
+          <data type='unsignedInt'/>
+        </element>
+      </optional>
+    </element>
+  </define>
+
+  <define name='mktme'>
+    <element name='mktme'>
+      <ref name='supported'/>
+      <optional>
+        <element name='keys_supported'>
           <data type='unsignedInt'/>
         </element>
       </optional>

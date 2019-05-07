@@ -12,5 +12,6 @@
   </devices>
   <features>
     <sev supported='no'/>
+    <mktme supported='no'/>
   </features>
 </domainCapabilities>
