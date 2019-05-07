@@ -507,6 +507,7 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
     QEMU_CAPS_VIRTIO_PCI_TRANSITIONAL, /* virtio *-pci-{non-}transitional devices */
     QEMU_CAPS_OVERCOMMIT, /* -overcommit */
     QEMU_CAPS_QUERY_CURRENT_MACHINE, /* query-current-machine command */
+    QEMU_CAPS_MKTME_GUEST, /* -object mktme-guest,... */
 
     QEMU_CAPS_LAST /* this must always be the last item */
 } virQEMUCapsFlags;
@@ -643,6 +644,9 @@ bool virQEMUCapsCPUFilterFeatures(const char *name,
 
 virSEVCapabilityPtr
 virQEMUCapsGetSEVCapabilities(virQEMUCapsPtr qemuCaps);
+
+virMKTMECapabilityPtr
+virQEMUCapsGetMKTMECapabilities(virQEMUCapsPtr qemuCaps);
 
 virArch virQEMUCapsArchFromString(const char *arch);
 const char *virQEMUCapsArchToString(virArch arch);

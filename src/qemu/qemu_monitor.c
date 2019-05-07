@@ -3923,6 +3923,16 @@ qemuMonitorGetSEVCapabilities(qemuMonitorPtr mon,
 
 
 int
+qemuMonitorGetMKTMECapabilities(qemuMonitorPtr mon,
+                                virMKTMECapability **capabilities)
+{
+    QEMU_CHECK_MONITOR(mon);
+
+    return qemuMonitorJSONGetMKTMECapabilities(mon, capabilities);
+}
+
+
+int
 qemuMonitorNBDServerStart(qemuMonitorPtr mon,
                           const char *host,
                           unsigned int port,

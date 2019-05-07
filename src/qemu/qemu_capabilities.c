@@ -525,6 +525,7 @@ VIR_ENUM_IMPL(virQEMUCaps,
               "virtio-pci-non-transitional",
               "overcommit",
               "query-current-machine",
+              "mktme-guest",
     );
 
 
@@ -594,6 +595,8 @@ struct _virQEMUCaps {
     virGICCapability *gicCapabilities;
 
     virSEVCapability *sevCapabilities;
+
+    virMKTMECapability *mktmeCapabilities;
 
     virQEMUCapsHostCPUData kvmCPU;
     virQEMUCapsHostCPUData tcgCPU;
@@ -1113,6 +1116,7 @@ struct virQEMUCapsStringFlags virQEMUCapsObjectTypes[] = {
     { "virtio-scsi-pci-non-transitional", QEMU_CAPS_VIRTIO_PCI_TRANSITIONAL },
     { "virtio-serial-pci-transitional", QEMU_CAPS_VIRTIO_PCI_TRANSITIONAL },
     { "virtio-serial-pci-non-transitional", QEMU_CAPS_VIRTIO_PCI_TRANSITIONAL },
+    { "mktme-guest", QEMU_CAPS_MKTME_GUEST },
 };
 
 static struct virQEMUCapsStringFlags virQEMUCapsDevicePropsVirtioBalloon[] = {
@@ -2103,6 +2107,13 @@ virQEMUCapsGetSEVCapabilities(virQEMUCapsPtr qemuCaps)
 }
 
 
+virMKTMECapabilityPtr
+virQEMUCapsGetMKTMECapabilities(virQEMUCapsPtr qemuCaps)
+{
+    return qemuCaps->mktmeCapabilities;
+}
+
+
 static int
 virQEMUCapsProbeQMPCommands(virQEMUCapsPtr qemuCaps,
                             qemuMonitorPtr mon)
@@ -2807,6 +2818,29 @@ virQEMUCapsProbeQMPSEVCapabilities(virQEMUCapsPtr qemuCaps,
 
     virSEVCapabilitiesFree(qemuCaps->sevCapabilities);
     qemuCaps->sevCapabilities = caps;
+    return 0;
+}
+
+
+static int
+virQEMUCapsProbeQMPMKTMECapabilities(virQEMUCapsPtr qemuCaps,
+    qemuMonitorPtr mon)
+{
+    int rc = -1;
+    virMKTMECapability *caps = NULL;
+
+    if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_MKTME_GUEST))
+        return 0;
+    if ((rc = qemuMonitorGetMKTMECapabilities(mon, &caps)) < 0)
+        return -1;
+
+    if (rc == 0) {
+        virQEMUCapsClear(qemuCaps, QEMU_CAPS_MKTME_GUEST);
+        return 0;
+    }
+
+    virMKTMECapabilitiesFree(qemuCaps->mktmeCapabilities);
+    qemuCaps->mktmeCapabilities = caps;
     return 0;
 }
 
@@ -4416,6 +4450,8 @@ virQEMUCapsInitQMPMonitor(virQEMUCapsPtr qemuCaps,
     if (virQEMUCapsProbeQMPGICCapabilities(qemuCaps, mon) < 0)
         return -1;
     if (virQEMUCapsProbeQMPSEVCapabilities(qemuCaps, mon) < 0)
+        return -1;
+    if (virQEMUCapsProbeQMPMKTMECapabilities(qemuCaps, mon) < 0)
         return -1;
 
     virQEMUCapsInitProcessCaps(qemuCaps);
