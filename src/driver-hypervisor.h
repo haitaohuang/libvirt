@@ -1323,6 +1323,12 @@ typedef int
                         unsigned int flags);
 
 typedef int
+(*virDrvNodeGetMKTMEInfo)(virConnectPtr conn,
+                          virTypedParameterPtr *params,
+                          int *nparams,
+                          unsigned int flags);
+
+typedef int
 (*virDrvDomainGetLaunchSecurityInfo)(virDomainPtr domain,
                                         virTypedParameterPtr *params,
                                         int *nparams,
@@ -1580,6 +1586,7 @@ struct _virHypervisorDriver {
     virDrvConnectBaselineHypervisorCPU connectBaselineHypervisorCPU;
     virDrvNodeGetSEVInfo nodeGetSEVInfo;
     virDrvDomainGetLaunchSecurityInfo domainGetLaunchSecurityInfo;
+    virDrvNodeGetMKTMEInfo nodeGetMKTMEInfo;
 };
 
 
