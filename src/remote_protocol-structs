@@ -2931,6 +2931,17 @@ struct remote_node_get_sev_info_ret {
         } params;
         int                        nparams;
 };
+struct remote_node_get_mktme_info_args {
+        int                        nparams;
+        u_int                      flags;
+};
+struct remote_node_get_mktme_info_ret {
+        struct {
+                u_int              params_len;
+                remote_typed_param * params_val;
+        } params;
+        int                        nparams;
+};
 struct remote_domain_get_launch_security_info_args {
         remote_nonnull_domain      dom;
         u_int                      flags;
@@ -3385,4 +3396,5 @@ enum remote_procedure {
         REMOTE_PROC_CONNECT_LIST_ALL_NWFILTER_BINDINGS = 401,
         REMOTE_PROC_DOMAIN_SET_IOTHREAD_PARAMS = 402,
         REMOTE_PROC_CONNECT_GET_STORAGE_POOL_CAPABILITIES = 403,
+        REMOTE_PROC_NODE_GET_MKTME_INFO = 404,
 };

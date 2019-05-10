@@ -263,6 +263,9 @@ const REMOTE_NODE_SEV_INFO_MAX = 64;
 /* Upper limit on number of launch security information entries */
 const REMOTE_DOMAIN_LAUNCH_SECURITY_INFO_PARAMS_MAX = 64;
 
+/* Upper limit on number of MKTME parameters */
+const REMOTE_NODE_MKTME_INFO_MAX = 64;
+
 /* UUID.  VIR_UUID_BUFLEN definition comes from libvirt.h */
 typedef opaque remote_uuid[VIR_UUID_BUFLEN];
 
@@ -3514,6 +3517,16 @@ struct remote_node_get_sev_info_ret {
     int nparams;
 };
 
+struct remote_node_get_mktme_info_args {
+    int nparams;
+    unsigned int flags;
+};
+
+struct remote_node_get_mktme_info_ret {
+    remote_typed_param params<REMOTE_NODE_MKTME_INFO_MAX>;
+    int nparams;
+};
+
 struct remote_domain_get_launch_security_info_args {
     remote_nonnull_domain dom;
     unsigned int flags;
@@ -6342,5 +6355,11 @@ enum remote_procedure {
      * @generate: both
      * @acl: connect:read
      */
-    REMOTE_PROC_CONNECT_GET_STORAGE_POOL_CAPABILITIES = 403
+    REMOTE_PROC_CONNECT_GET_STORAGE_POOL_CAPABILITIES = 403,
+
+    /**
+     * @generate: none
+     * @acl: connect:read
+     */
+    REMOTE_PROC_NODE_GET_MKTME_INFO = 404
 };
