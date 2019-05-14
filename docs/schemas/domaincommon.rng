@@ -457,35 +457,64 @@
 
   <define name="launchSecurity">
     <element name="launchSecurity">
-      <attribute name="type">
-        <value>sev</value>
-      </attribute>
-      <interleave>
-        <element name="cbitpos">
-          <data type='unsignedInt'/>
-        </element>
-        <element name="reducedPhysBits">
-          <data type='unsignedInt'/>
-        </element>
-        <element name="policy">
-          <ref name='hexuint'/>
-        </element>
-        <optional>
-          <element name="handle">
-            <ref name='unsignedInt'/>
-          </element>
-        </optional>
-        <optional>
-          <element name="dhCert">
-            <data type="string"/>
-          </element>
-        </optional>
-        <optional>
-          <element name="session">
-            <data type="string"/>
-          </element>
-        </optional>
-      </interleave>
+      <choice>
+        <group>
+          <optional>
+            <attribute name="type">
+              <value>sev</value>
+            </attribute>
+          </optional>
+          <interleave>
+            <element name="cbitpos">
+              <data type='unsignedInt'/>
+            </element>
+            <element name="reducedPhysBits">
+              <data type='unsignedInt'/>
+            </element>
+            <element name="policy">
+              <ref name='hexuint'/>
+            </element>
+            <optional>
+              <element name="handle">
+                <ref name='unsignedInt'/>
+              </element>
+            </optional>
+            <optional>
+              <element name="dhCert">
+                <data type="string"/>
+              </element>
+            </optional>
+            <optional>
+              <element name="session">
+                <data type="string"/>
+              </element>
+            </optional>
+          </interleave>
+        </group>
+        <group>
+          <optional>
+            <attribute name="type">
+              <value>mktme</value>
+            </attribute>
+          </optional>
+          <interleave>
+            <element name="id">
+              <data type="string"/>
+            </element>
+            <element name="key_type">
+              <data type="string"/>
+            </element>
+            <element name="encryption_algorithm">
+              <data type="string"/>
+            </element>
+            <optional>
+              <element name="key">
+                <data type="string"/>
+              </element>
+            </optional>
+          </interleave>
+        </group>
+      </choice>
     </element>
   </define>
 

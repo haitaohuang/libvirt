@@ -2279,6 +2279,7 @@ struct _virDomainKeyWrapDef {
 typedef enum {
     VIR_DOMAIN_LAUNCH_SECURITY_NONE,
     VIR_DOMAIN_LAUNCH_SECURITY_SEV,
+    VIR_DOMAIN_LAUNCH_SECURITY_MKTME,
 
     VIR_DOMAIN_LAUNCH_SECURITY_LAST,
 } virDomainLaunchSecurity;
@@ -2291,6 +2292,16 @@ struct _virDomainSEVDef {
     unsigned int policy;
     unsigned int cbitpos;
     unsigned int reduced_phys_bits;
+};
+
+
+struct _virDomainMKTMEDef {
+    int   sectype; /* enum virDomainLaunchSecurity */
+    char  *id;
+    char  *key_type;
+    char  *key;
+    char  *encryption_algorithm;
+    int   key_handle;
 };
 
 
@@ -2490,6 +2501,9 @@ struct _virDomainDef {
 
     /* SEV-specific domain */
     virDomainSEVDefPtr sev;
+
+    /* MKTME- domain info*/
+    virDomainMKTMEDefPtr mktme;
 
     /* Application-specific custom metadata */
     xmlNodePtr metadata;

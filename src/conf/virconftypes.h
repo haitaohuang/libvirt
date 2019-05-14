@@ -277,6 +277,9 @@ typedef virDomainResourceDef *virDomainResourceDefPtr;
 typedef struct _virDomainSEVDef virDomainSEVDef;
 typedef virDomainSEVDef *virDomainSEVDefPtr;
 
+typedef struct _virDomainMKTMEDef virDomainMKTMEDef;
+typedef virDomainMKTMEDef *virDomainMKTMEDefPtr;
+
 typedef struct _virDomainShmemDef virDomainShmemDef;
 typedef virDomainShmemDef *virDomainShmemDefPtr;
 
