@@ -59,6 +59,7 @@
 #include "virgic.h"
 #include "virmdev.h"
 #include "virdomainsnapshotobjlist.h"
+#include "virmktme.h"
 #if defined(__linux__)
 # include <linux/capability.h>
 #endif
@@ -7788,6 +7789,9 @@ qemuBuildMachineCommandLine(virCommandPtr cmd,
     if (def->sev)
         virBufferAddLit(&buf, ",memory-encryption=sev0");
 
+    if (def->mktme)
+        virBufferAddLit(&buf, ",memory-encryption=m0");
+
     virCommandAddArgBuffer(cmd, &buf);
 
     ret = 0;
@@ -10291,6 +10295,39 @@ qemuBuildSEVCommandLine(virDomainObjPtr vm, virCommandPtr cmd,
     return ret;
 }
 
+
+static int
+qemuBuildMKTMECommandLine(virCommandPtr cmd,
+                          virDomainMKTMEDefPtr mktme)
+{
+    virBuffer buf = VIR_BUFFER_INITIALIZER;
+    int ret = -1;
+
+    if (!mktme)
+        return 0;
+
+    if ((mktme->key_handle = virGetMktmeKeyHandle(mktme->id, mktme->key_type,
+        mktme->key, mktme->encryption_algorithm)) < 0) {
+        virReportError(VIR_ERR_INTERNAL_ERROR,
+            _("Failed to get MKTME key handle id %s"), mktme->id);
+        return -1;
+
+    }
+
+    VIR_DEBUG("id=%s key_type=%s key_handle=0x%x",
+              mktme->id, mktme->key_type, mktme->key_handle);
+
+    virBufferAsprintf(&buf, "mktme-guest,id=m0,handle=%d", mktme->key_handle);
+
+    virCommandAddArg(cmd, "-object");
+    virCommandAddArgBuffer(cmd, &buf);
+    ret = 0;
+
+    virBufferFreeAndReset(&buf);
+    return ret;
+}
+
+
 static int
 qemuBuildVMCoreInfoCommandLine(virCommandPtr cmd,
                                const virDomainDef *def,
@@ -10909,6 +10946,9 @@ qemuBuildCommandLine(virQEMUDriverPtr driver,
         goto error;
 
     if (qemuBuildSEVCommandLine(vm, cmd, def->sev) < 0)
+        goto error;
+
+    if (qemuBuildMKTMECommandLine(cmd, def->mktme) < 0)
         goto error;
 
     if (snapshot)

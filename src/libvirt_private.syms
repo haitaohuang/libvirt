@@ -2353,6 +2353,9 @@ virMediatedDeviceSetUsedBy;
 virMediatedDeviceTypeFree;
 virMediatedDeviceTypeReadAttrs;
 
+# util/virmktme.h
+virGetMktmeKeyHandle;
+virIsMktmeEnabled;
 
 # util/virmodule.h
 virModuleLoad;
