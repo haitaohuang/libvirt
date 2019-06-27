@@ -1328,6 +1328,12 @@ typedef int
                         unsigned int flags);
 
 typedef int
+(*virDrvNodeGetSGXInfo)(virConnectPtr conn,
+                        virTypedParameterPtr *params,
+                        int *nparams,
+                        unsigned int flags);
+
+typedef int
 (*virDrvDomainGetLaunchSecurityInfo)(virDomainPtr domain,
                                         virTypedParameterPtr *params,
                                         int *nparams,
@@ -1632,4 +1638,5 @@ struct _virHypervisorDriver {
     virDrvDomainCheckpointGetParent domainCheckpointGetParent;
     virDrvDomainCheckpointDelete domainCheckpointDelete;
     virDrvDomainGetGuestInfo domainGetGuestInfo;
+    virDrvNodeGetSGXInfo nodeGetSGXInfo;
 };

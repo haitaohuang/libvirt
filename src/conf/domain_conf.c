@@ -1247,6 +1247,7 @@ VIR_ENUM_IMPL(virDomainLaunchSecurity,
               VIR_DOMAIN_LAUNCH_SECURITY_LAST,
               "",
               "sev",
+              "sgx",
 );
 
 static virClassPtr virDomainObjClass;
@@ -3304,6 +3305,15 @@ virDomainSEVDefFree(virDomainSEVDefPtr def)
     VIR_FREE(def);
 }
 
+static void
+virDomainSGXDefFree(virDomainSGXDefPtr def)
+{
+    if (!def)
+        return;
+
+    VIR_FREE(def);
+}
+
 
 void virDomainDefFree(virDomainDefPtr def)
 {
@@ -3489,6 +3499,8 @@ void virDomainDefFree(virDomainDefPtr def)
         (def->ns.free)(def->namespaceData);
 
     virDomainSEVDefFree(def->sev);
+
+    virDomainSGXDefFree(def->sgx);
 
     xmlFreeNode(def->metadata);
 

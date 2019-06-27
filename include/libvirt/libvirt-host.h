@@ -472,6 +472,36 @@ int virNodeGetSEVInfo (virConnectPtr conn,
                        virTypedParameterPtr *params,
                        int *nparams,
                        unsigned int flags);
+/**
+ *
+ * SGX Parameters
+ */
+
+/**
+ * VIR_NODE_SGX_SUPPORT:
+ *
+ * Macro represents if the Intel SGX is enabled on platform
+ */
+# define VIR_NODE_SGX_ENABLED "sgx-enabled"
+
+ /**
+  * VIR_NODE_SGX_SUPPORT:
+  *
+  * Macro represents if the platform supports Intel SGX
+  */
+# define VIR_NODE_SGX_PRESENT "sgx-present"
+
+/**
+ * VIR_NODE_SGX_EPC:
+ *
+ * Macro represents if the platform supports Intel SGX when SGX is enabled
+ */
+# define VIR_NODE_SGX_EPC "sgx-epc"
+
+int virNodeGetSGXInfo(virConnectPtr conn,
+                      virTypedParameterPtr *params,
+                      int *nparams,
+                      unsigned int flags);
 
 /**
  * virConnectFlags

@@ -5557,6 +5557,42 @@ remoteDispatchNodeGetSevInfo(virNetServerPtr server ATTRIBUTE_UNUSED,
 
 
 static int
+remoteDispatchNodeGetSGXInfo(virNetServerPtr server ATTRIBUTE_UNUSED,
+                             virNetServerClientPtr client,
+                             virNetMessagePtr msg ATTRIBUTE_UNUSED,
+                             virNetMessageErrorPtr rerr,
+                             remote_node_get_sgx_info_args *args,
+                             remote_node_get_sgx_info_ret *ret)
+{
+    virTypedParameterPtr params = NULL;
+    int nparams = 0;
+    int rv = -1;
+    virConnectPtr conn = remoteGetHypervisorConn(client);
+
+    if (!conn)
+        goto cleanup;
+
+    if (virNodeGetSGXInfo(conn, &params, &nparams, args->flags) < 0)
+        goto cleanup;
+
+    if (virTypedParamsSerialize(params, nparams,
+        REMOTE_NODE_SGX_INFO_MAX,
+        (virTypedParameterRemotePtr *)&ret->params.params_val,
+        &ret->params.params_len,
+        args->flags) < 0)
+        goto cleanup;
+
+    rv = 0;
+
+cleanup:
+    if (rv < 0)
+        virNetMessageSaveError(rerr);
+    virTypedParamsFree(params, nparams);
+    return rv;
+}
+
+
+static int
 remoteDispatchNodeGetMemoryParameters(virNetServerPtr server ATTRIBUTE_UNUSED,
                                       virNetServerClientPtr client,
                                       virNetMessagePtr msg ATTRIBUTE_UNUSED,

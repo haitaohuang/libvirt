@@ -23067,6 +23067,77 @@ qemuDomainGetSEVMeasurement(virQEMUDriverPtr driver,
 
 
 static int
+qemuGetSGXInfoToParams(virQEMUCapsPtr qemuCaps,
+    virTypedParameterPtr *params,
+    int *nparams,
+    unsigned int flags)
+{
+    int maxpar = 0;
+    int n = 0;
+    virSGXCapabilityPtr sgx = virQEMUCapsGetSGXCapabilities(qemuCaps);
+    virTypedParameterPtr sgxParams = NULL;
+
+    virCheckFlags(VIR_TYPED_PARAM_STRING_OKAY, -1);
+
+    if (virTypedParamsAddString(&sgxParams, &n, &maxpar,
+        VIR_NODE_SGX_ENABLED, sgx->enabled) < 0)
+        return -1;
+
+    if (virTypedParamsAddString(&sgxParams, &n, &maxpar,
+        VIR_NODE_SGX_PRESENT, sgx->present) < 0)
+        return -1;
+
+    if (virTypedParamsAddString(&sgxParams, &n, &maxpar,
+        VIR_NODE_SGX_EPC, sgx->total_epc) < 0)
+        goto cleanup;
+
+    VIR_STEAL_PTR(*params, sgxParams);
+    *nparams = n;
+    return 0;
+
+ cleanup:
+    virTypedParamsFree(sgxParams, n);
+    return -1;
+}
+
+
+static int
+qemuNodeGetSGXInfo(virConnectPtr conn,
+    virTypedParameterPtr *params,
+    int *nparams,
+    unsigned int flags)
+{
+    virQEMUDriverPtr driver = conn->privateData;
+    virQEMUCapsPtr qemucaps = NULL;
+    int ret = -1;
+
+    if (virNodeGetSgxInfoEnsureACL(conn) < 0)
+        return ret;
+
+    qemucaps = virQEMUCapsCacheLookupByArch(driver->qemuCapsCache,
+        virArchFromHost());
+    if (!qemucaps)
+        goto cleanup;
+
+    if (!virQEMUCapsGet(qemucaps, QEMU_CAPS_SGX_GUEST)) {
+        virReportError(VIR_ERR_OPERATION_UNSUPPORTED, "%s",
+            _("QEMU does not support SGX guest"));
+        goto cleanup;
+    }
+
+    if (qemuGetSGXInfoToParams(qemucaps, params, nparams, flags) < 0)
+        goto cleanup;
+
+    ret = 0;
+
+ cleanup:
+    virObjectUnref(qemucaps);
+
+    return ret;
+}
+
+
+static int
 qemuDomainGetLaunchSecurityInfo(virDomainPtr domain,
                                 virTypedParameterPtr *params,
                                 int *nparams,
@@ -23430,6 +23501,7 @@ static virHypervisorDriver qemuHypervisorDriver = {
     .domainCheckpointGetParent = qemuDomainCheckpointGetParent, /* 5.6.0 */
     .domainCheckpointDelete = qemuDomainCheckpointDelete, /* 5.6.0 */
     .domainGetGuestInfo = qemuDomainGetGuestInfo, /* 5.7.0 */
+    .nodeGetSGXInfo = qemuNodeGetSGXInfo,
 };
 
 

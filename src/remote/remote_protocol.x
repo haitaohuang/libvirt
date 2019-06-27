@@ -269,6 +269,9 @@ const REMOTE_DOMAIN_IOTHREAD_PARAMS_MAX = 64;
 /* Upper limit on number of SEV parameters */
 const REMOTE_NODE_SEV_INFO_MAX = 64;
 
+/* Upper limit on number of SGX parameters */
+const REMOTE_NODE_SGX_INFO_MAX = 64;
+
 /* Upper limit on number of launch security information entries */
 const REMOTE_DOMAIN_LAUNCH_SECURITY_INFO_PARAMS_MAX = 64;
 
@@ -3544,6 +3547,16 @@ struct remote_node_get_sev_info_ret {
     int nparams;
 };
 
+struct remote_node_get_sgx_info_args {
+    int nparams;
+    unsigned int flags;
+};
+
+struct remote_node_get_sgx_info_ret {
+    remote_typed_param params<REMOTE_NODE_SGX_INFO_MAX>;
+    int nparams;
+};
+
 struct remote_domain_get_launch_security_info_args {
     remote_nonnull_domain dom;
     unsigned int flags;
@@ -6618,4 +6631,10 @@ enum remote_procedure {
      * @acl: connect:write
      */
     REMOTE_PROC_CONNECT_SET_IDENTITY = 419
+
+    /**
+     * @generate: none
+     * @acl: connect:read
+     */
+    REMOTE_PROC_NODE_GET_SGX_INFO = 420
 };

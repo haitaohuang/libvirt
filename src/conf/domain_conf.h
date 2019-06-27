@@ -2315,6 +2315,12 @@ struct _virDomainSEVDef {
     unsigned int reduced_phys_bits;
 };
 
+struct _virDomainSGXDef {
+    unsigned int total_epc;
+    bool enable;
+    bool present;
+};
+
 
 typedef enum {
     VIR_DOMAIN_IOMMU_MODEL_INTEL,
@@ -2514,6 +2520,8 @@ struct _virDomainDef {
 
     /* SEV-specific domain */
     virDomainSEVDefPtr sev;
+
+    virDomainSGXDefPtr sgx;
 
     /* Application-specific custom metadata */
     xmlNodePtr metadata;

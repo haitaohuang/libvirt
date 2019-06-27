@@ -522,6 +522,9 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
     QEMU_CAPS_DEVICE_VHOST_USER_GPU, /* -device vhost-user-gpu */
     QEMU_CAPS_DEVICE_VHOST_USER_VGA, /* -device vhost-user-vga */
 
+    /* 340 */
+    QEMU_CAPS_INTEL_SGX, /* intel sgx support */
+
     QEMU_CAPS_LAST /* this must always be the last item */
 } virQEMUCapsFlags;
 
@@ -666,6 +669,9 @@ virQEMUCapsCPUFeatureFromQEMU(virQEMUCapsPtr qemuCaps,
 
 virSEVCapabilityPtr
 virQEMUCapsGetSEVCapabilities(virQEMUCapsPtr qemuCaps);
+
+virSGXCapabilityPtr
+virQEMUCapsGetSGXCapabilities(virQEMUCapsPtr qemuCaps);
 
 virArch virQEMUCapsArchFromString(const char *arch);
 const char *virQEMUCapsArchToString(virArch arch);

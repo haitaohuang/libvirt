@@ -79,6 +79,15 @@ virSEVCapabilitiesFree(virSEVCapability *cap)
     VIR_FREE(cap);
 }
 
+void
+virSGXCapabilitiesFree(virSGXCapability *cap)
+{
+    if (!cap)
+        return;
+
+    VIR_FREE(cap);
+}
+
 
 static void
 virDomainCapsDispose(void *obj)
@@ -90,6 +99,7 @@ virDomainCapsDispose(void *obj)
     virObjectUnref(caps->cpu.custom);
     virCPUDefFree(caps->cpu.hostModel);
     virSEVCapabilitiesFree(caps->sev);
+    virSGXCapabilitiesFree(caps->sgx);
 
     virDomainCapsStringValuesFree(&caps->os.loader.values);
 }
@@ -607,6 +617,28 @@ virDomainCapsFeatureSEVFormat(virBufferPtr buf,
     return;
 }
 
+static void
+virDomainCapsFeatureSGXFormat(virBufferPtr buf,
+                              virSGXCapabilityPtr const sgx)
+{
+    if (!sgx) {
+        virBufferAddLit(buf, "<sgx supported='no'/>\n");
+    }
+    else {
+        virBufferAddLit(buf, "<sgx supported='yes'>\n");
+        virBufferAdjustIndent(buf, 2);
+        virBufferAsprintf(buf, "<totalEpc>%d</totalEpc>\n", sgx->total_epc);
+        virBufferAsprintf(buf, "<enabled>%s</enabled>\n",
+            sgx->enabled ? "yes" : "no");
+        virBufferAsprintf(buf, "<present>%s</present>\n",
+            sgx->present ? "yes" : "no");
+        virBufferAdjustIndent(buf, -2);
+        virBufferAddLit(buf, "</sev>\n");
+    }
+
+    return;
+}
+
 
 char *
 virDomainCapsFormat(virDomainCapsPtr const caps)
@@ -651,6 +683,7 @@ virDomainCapsFormat(virDomainCapsPtr const caps)
     FORMAT_SINGLE("vmcoreinfo", caps->vmcoreinfo);
     FORMAT_SINGLE("genid", caps->genid);
     virDomainCapsFeatureSEVFormat(&buf, caps->sev);
+    virDomainCapsFeatureSGXFormat(&buf, caps->sgx);
 
     virBufferAdjustIndent(&buf, -2);
     virBufferAddLit(&buf, "</features>\n");

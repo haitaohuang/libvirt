@@ -2939,6 +2939,17 @@ struct remote_node_get_sev_info_ret {
         } params;
         int                        nparams;
 };
+struct remote_node_get_sgx_info_args {
+        int                        nparams;
+        u_int                      flags;
+};
+struct remote_node_get_sgx_info_ret {
+        struct {
+                u_int              params_len;
+                remote_typed_param * params_val;
+        } params;
+        int                        nparams;
+};
 struct remote_domain_get_launch_security_info_args {
         remote_nonnull_domain      dom;
         u_int                      flags;
@@ -3543,4 +3554,5 @@ enum remote_procedure {
         REMOTE_PROC_DOMAIN_CHECKPOINT_DELETE = 417,
         REMOTE_PROC_DOMAIN_GET_GUEST_INFO = 418,
         REMOTE_PROC_CONNECT_SET_IDENTITY = 419,
+        REMOTE_PROC_NODE_GET_SGX_INFO = 420,
 };

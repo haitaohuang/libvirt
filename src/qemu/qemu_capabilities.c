@@ -540,6 +540,9 @@ VIR_ENUM_IMPL(virQEMUCaps,
               "dbus-vmstate",
               "vhost-user-gpu",
               "vhost-user-vga",
+
+              /* 340 */
+              "intel-sgx",
     );
 
 
@@ -610,6 +613,8 @@ struct _virQEMUCaps {
     virGICCapability *gicCapabilities;
 
     virSEVCapability *sevCapabilities;
+
+    virSGXCapability *sgxCapabilities;
 
     virQEMUCapsHostCPUData kvmCPU;
     virQEMUCapsHostCPUData tcgCPU;
@@ -1133,6 +1138,7 @@ struct virQEMUCapsStringFlags virQEMUCapsObjectTypes[] = {
     { "dbus-vmstate", QEMU_CAPS_DBUS_VMSTATE },
     { "vhost-user-gpu", QEMU_CAPS_DEVICE_VHOST_USER_GPU },
     { "vhost-user-vga", QEMU_CAPS_DEVICE_VHOST_USER_VGA },
+    { "intel-sgx", QEMU_CAPS_INTEL_SGX },
 };
 
 static struct virQEMUCapsStringFlags virQEMUCapsDevicePropsVirtioBalloon[] = {
@@ -1583,6 +1589,23 @@ virQEMUCapsSEVInfoCopy(virSEVCapabilityPtr *dst,
     return 0;
 }
 
+static int
+virQEMUCapsSGXInfoCopy(virSGXCapability *dst,
+                       virSGXCapability src)
+{
+    VIR_AUTOPTR(virSGXCapability) tmp = NULL;
+
+    if (VIR_ALLOC(tmp) < 0)
+        return -1;
+
+    tmp->total_epc = src->total_epc;
+    tmp->enabled = src->enabled;
+    tmp->present = src->present;
+
+    VIR_STEAL_PTR(*dst, tmp);
+    return 0;
+}
+
 
 virQEMUCapsPtr virQEMUCapsNewCopy(virQEMUCapsPtr qemuCaps)
 {
@@ -1652,6 +1675,11 @@ virQEMUCapsPtr virQEMUCapsNewCopy(virQEMUCapsPtr qemuCaps)
     if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_SEV_GUEST) &&
         virQEMUCapsSEVInfoCopy(&ret->sevCapabilities,
                                qemuCaps->sevCapabilities) < 0)
+        goto error;
+
+    if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_INTEL_SGX) &&
+        virQEMUCapsSGXInfoCopy(&ret->sgxCapabilities,
+                               qemuCaps->sgxCapabilities) < 0)
         goto error;
 
     return ret;
@@ -2148,6 +2176,11 @@ virQEMUCapsGetSEVCapabilities(virQEMUCapsPtr qemuCaps)
     return qemuCaps->sevCapabilities;
 }
 
+virSGXCapabilityPtr
+virQEMUCapsGetSGXCapabilities(virQEMUCapsPtr qemuCaps)
+{
+    return qemuCaps->sgxCapabilities;
+}
 
 static int
 virQEMUCapsProbeQMPCommands(virQEMUCapsPtr qemuCaps,
@@ -2857,6 +2890,29 @@ virQEMUCapsProbeQMPSEVCapabilities(virQEMUCapsPtr qemuCaps,
 
     virSEVCapabilitiesFree(qemuCaps->sevCapabilities);
     qemuCaps->sevCapabilities = caps;
+    return 0;
+}
+
+static int
+virQEMUCapsProbeQMPSGXCapabilities(virQEMUCapsPtr qemuCaps,
+                                   qemuMonitorPtr mon)
+{
+    int rc = -1;
+    virSGXCapability *caps = NULL;
+
+    if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_INTEL_SGX))
+        return 0;
+
+    if ((rc = qemuMonitorGetSGXCapabilities(mon, &caps)) < 0)
+        return -1;
+
+    if (rc == 0) {
+        virQEMUCapsClear(qemuCaps, QEMU_CAPS_INTEL_SGX);
+        return 0;
+    }
+
+    virSGXCapabilitiesFree(qemuCaps->sgxCapabilities);
+    qemuCaps->sgxCapabilities = caps;
     return 0;
 }
 
@@ -3580,6 +3636,49 @@ virQEMUCapsParseSEVInfo(virQEMUCapsPtr qemuCaps, xmlXPathContextPtr ctxt)
     return 0;
 }
 
+static int
+virQEMUCapsParseSGXInfo(virQEMUCapsPtr qemuCaps, xmlXPathContextPtr ctxt)
+{
+    VIR_AUTOPTR(virSGXCapability) sgx = NULL;
+
+    if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_SGX_GUEST))
+        return 0;
+
+    if (virXPathBoolean("boolean(./sgx)", ctxt) == 0) {
+        virReportError(VIR_ERR_XML_ERROR, "%s",
+            _("missing SGX platform data in QEMU "
+                "capabilities cache"));
+        return -1;
+    }
+
+    if (VIR_ALLOC(sgx) < 0)
+        return -1;
+
+    if (virXPathBoolean("boolean(./sgx/enabled)", ctxt, &sgx->enabled) == 0) {
+        virReportError(VIR_ERR_XML_ERROR, "%s",
+            _("missing SGX platform enabled data in QEMU "
+                "capabilities cache"));
+        return -1;
+    }
+
+    if (virXPathBoolean("boolean(./sgx/present)", ctxt, &sgx->present) == 0) {
+        virReportError(VIR_ERR_XML_ERROR, "%s",
+            _("missing SGX platform present data in QEMU "
+                "capabilities cache"));
+        return -1;
+    }
+
+    if (virXPathUInt("string(./sgx/total_epc)", ctxt, &sgx->total_epc) < 0) {
+        virReportError(VIR_ERR_XML_ERROR, "%s",
+            _("missing or malformed SGX platform total_epc information "
+                "in QEMU capabilities cache"));
+        return -1;
+    }
+
+    VIR_STEAL_PTR(qemuCaps->sgxCapabilities, sgx);
+    return 0;
+}
+
 
 /*
  * Parsing a doc that looks like
@@ -3831,6 +3930,9 @@ virQEMUCapsLoadCache(virArch hostArch,
     if (virQEMUCapsParseSEVInfo(qemuCaps, ctxt) < 0)
         goto cleanup;
 
+    if (virQEMUCapsParseSGXInfo(qemuCaps, ctxt) < 0)
+        goto cleanup;
+
     virQEMUCapsInitHostCPUModel(qemuCaps, hostArch, VIR_DOMAIN_VIRT_KVM);
     virQEMUCapsInitHostCPUModel(qemuCaps, hostArch, VIR_DOMAIN_VIRT_QEMU);
 
@@ -3967,6 +4069,23 @@ virQEMUCapsFormatSEVInfo(virQEMUCapsPtr qemuCaps, virBufferPtr buf)
     virBufferAddLit(buf, "</sev>\n");
 }
 
+static void
+virQEMUCapsFormatSGXInfo(virQEMUCapsPtr qemuCaps, virBufferPtr buf)
+{
+    virSGXCapabilityPtr sgx = virQEMUCapsGetSGXCapabilities(qemuCaps);
+
+    virBufferAddLit(buf, "<sgx>\n");
+    virBufferAdjustIndent(buf, 2);
+    virBufferAsprintf(buf, "<enabled>%s</enabled>\n",
+                      sgx->enabled ? "yes" : "no");
+    virBufferAsprintf(buf, "<present>%s</present>\n",
+                    sgx->present ? "yes" : "no");
+    virBufferAsprintf(buf, "<total_epc>%u</total_epc>\n",
+                    sgx->total_epc);
+    virBufferAdjustIndent(buf, -2);
+    virBufferAddLit(buf, "</sgx>\n");
+}
+
 
 char *
 virQEMUCapsFormatCache(virQEMUCapsPtr qemuCaps)
@@ -4051,6 +4170,9 @@ virQEMUCapsFormatCache(virQEMUCapsPtr qemuCaps)
 
     if (qemuCaps->sevCapabilities)
         virQEMUCapsFormatSEVInfo(qemuCaps, &buf);
+
+    if (qemuCaps->sgxCapabilities)
+        virQEMUCapsFormatSGXInfo(qemuCaps, &buf);
 
     if (qemuCaps->kvmSupportsNesting)
         virBufferAddLit(&buf, "<kvmSupportsNesting/>\n");
@@ -4556,6 +4678,8 @@ virQEMUCapsInitQMPMonitor(virQEMUCapsPtr qemuCaps,
     if (virQEMUCapsProbeQMPGICCapabilities(qemuCaps, mon) < 0)
         return -1;
     if (virQEMUCapsProbeQMPSEVCapabilities(qemuCaps, mon) < 0)
+        return -1;
+    if (virQEMUCapsProbeQMPSGXCapabilities(qemuCaps, mon) < 0)
         return -1;
 
     virQEMUCapsInitProcessCaps(qemuCaps);
@@ -5548,6 +5672,27 @@ virQEMUCapsFillDomainFeatureSEVCaps(virQEMUCapsPtr qemuCaps,
     return 0;
 }
 
+static int
+virQEMUCapsFillDomainFeatureSGXCaps(virQEMUCapsPtr qemuCaps,
+                                    virDomainCapsPtr domCaps)
+{
+    virSGXCapability *cap = qemuCaps->sgxCapabilities;
+    VIR_AUTOPTR(virSGXCapability) sgx = NULL;
+
+    if (!cap)
+        return 0;
+
+    if (VIR_ALLOC(sgx) < 0)
+        return -1;
+
+    sgx->total_epc = cap->total_epc;
+    sgx->enabled = cap->enabled;
+    sgx->present = cap->present;
+    VIR_STEAL_PTR(domCaps->sgx, sgx);
+
+    return 0;
+}
+
 
 int
 virQEMUCapsFillDomainCaps(virCapsPtr caps,
@@ -5595,7 +5740,8 @@ virQEMUCapsFillDomainCaps(virCapsPtr caps,
         virQEMUCapsFillDomainDeviceHostdevCaps(qemuCaps, hostdev) < 0 ||
         virQEMUCapsFillDomainDeviceRNGCaps(qemuCaps, rng) < 0 ||
         virQEMUCapsFillDomainFeatureGICCaps(qemuCaps, domCaps) < 0 ||
-        virQEMUCapsFillDomainFeatureSEVCaps(qemuCaps, domCaps) < 0)
+        virQEMUCapsFillDomainFeatureSEVCaps(qemuCaps, domCaps) < 0 ||
+        virQEMUCapsFillDomainFeatureSGXCaps(qemuCaps, domCaps) < 0)
         return -1;
 
     return 0;

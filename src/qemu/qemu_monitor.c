@@ -3793,6 +3793,14 @@ qemuMonitorGetSEVCapabilities(qemuMonitorPtr mon,
     return qemuMonitorJSONGetSEVCapabilities(mon, capabilities);
 }
 
+int
+qemuMonitorGetSGXCapabilities(qemuMonitorPtr mon,
+                              virSGXCapability **capabilities)
+{
+    QEMU_CHECK_MONITOR(mon);
+
+    return qemuMonitorJSONGetSGXCapabilities(mon, capabilities);
+}
 
 int
 qemuMonitorNBDServerStart(qemuMonitorPtr mon,

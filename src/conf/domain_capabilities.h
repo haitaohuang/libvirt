@@ -157,6 +157,14 @@ struct _virSEVCapability {
     unsigned int reduced_phys_bits;
 };
 
+typedef struct _virSGXCapability virSGXCapability;
+typedef virSGXCapability *virSGXCapabilityPtr;
+struct _virSGXCapability {
+    bool enabled;
+    bool present;
+    unsigned int total_epc;
+};
+
 struct _virDomainCaps {
     virObjectLockable parent;
 
@@ -182,6 +190,7 @@ struct _virDomainCaps {
     virTristateBool vmcoreinfo;
     virTristateBool genid;
     virSEVCapabilityPtr sev;
+    virSGXCapabilityPtr sgx;
     /* add new domain features here */
 };
 
@@ -234,3 +243,8 @@ void
 virSEVCapabilitiesFree(virSEVCapability *capabilities);
 
 VIR_DEFINE_AUTOPTR_FUNC(virSEVCapability, virSEVCapabilitiesFree);
+
+void
+virSGXCapabilitiesFree(virSGXCapability *capabilities);
+
+VIR_DEFINE_AUTOPTR_FUNC(virSGXCapability, virSGXCapabilitiesFree);

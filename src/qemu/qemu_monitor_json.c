@@ -6881,6 +6881,85 @@ qemuMonitorJSONGetSEVCapabilities(qemuMonitorPtr mon,
     return ret;
 }
 
+/**
+ * qemuMonitorJSONGetSGXCapabilities:
+ * @mon: qemu monitor object
+ * @capabilities: pointer to pointer to a SGX capability structure to be filled
+ *
+ * This function queries and fills in Intel's SGX support data.
+ *
+ * Returns -1 on error, 0 if SGX is not supported, and 1 if SEV is supported on
+ * the platform.
+ */
+int
+qemuMonitorJSONGetSGXCapabilities(qemuMonitorPtr mon,
+                                  virSGXCapability **capabilities)
+{
+    int ret = -1;
+    virJSONValuePtr cmd;
+    virJSONValuePtr reply = NULL;
+    virJSONValuePtr caps;
+    bool enabled;
+    bool present;
+    unsigned int total_epc;
+    VIR_AUTOPTR(virSGXCapability) capability = NULL;
+
+    *capabilities = NULL;
+
+    if (!(cmd = qemuMonitorJSONMakeCommand("query-sgx-capabilities",
+        NULL)))
+        return -1;
+
+    if (qemuMonitorJSONCommand(mon, cmd, &reply) < 0)
+        goto cleanup;
+
+    if (qemuMonitorJSONHasError(reply, "GenericError")) {
+        ret = 0;
+        goto cleanup;
+    }
+
+    if (qemuMonitorJSONCheckError(cmd, reply) < 0)
+        goto cleanup;
+
+    caps = virJSONValueObjectGetObject(reply, "return");
+
+    if (virJSONValueObjectGetBoolean(caps, "enabled", &enabled) < 0) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+            _("query-sgx-capabilities reply was missing"
+                " 'enabled' field"));
+        goto cleanup;
+    }
+
+    if (virJSONValueObjectGetBoolean(caps, "present", &present) < 0) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+            _("query-sgx-capabilities reply was missing"
+                " 'present' field"));
+        goto cleanup;
+    }
+
+    if (virJSONValueObjectGetNumberUint(caps, "max-epc-size-mbytes",
+        &total_epc) < 0) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+            _("query-sgx-capabilities reply was missing"
+                " 'total_epc' field"));
+        goto cleanup;
+    }
+
+    if (VIR_ALLOC(capability) < 0)
+        goto cleanup;
+
+    capability->enabled = enabled;
+    capability->present = present;
+    capability->total_epc = total_epc;
+    VIR_STEAL_PTR(*capabilities, capability);
+    ret = 1;
+ cleanup:
+    virJSONValueFree(cmd);
+    virJSONValueFree(reply);
+
+    return ret;
+}
+
 static virJSONValuePtr
 qemuMonitorJSONBuildInetSocketAddress(const char *host,
                                       const char *port)

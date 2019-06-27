@@ -6968,6 +6968,44 @@ remoteNodeGetSEVInfo(virConnectPtr conn,
 
 
 static int
+remoteNodeGetSGXInfo(virConnectPtr conn,
+                     virTypedParameterPtr *params,
+                     int *nparams,
+                     unsigned int flags)
+{
+    int rv = -1;
+    remote_node_get_sgx_info_args args;
+    remote_node_get_sgx_info_ret ret;
+    struct private_data *priv = conn->privateData;
+
+    remoteDriverLock(priv);
+
+    args.flags = flags;
+
+    memset(&ret, 0, sizeof(ret));
+    if (call(conn, priv, 0, REMOTE_PROC_NODE_GET_SGX_INFO,
+        (xdrproc_t)xdr_remote_node_get_sgx_info_args, (char *)&args,
+        (xdrproc_t)xdr_remote_node_get_sgx_info_ret, (char *)&ret) == -1)
+        goto done;
+
+    if (virTypedParamsDeserialize((virTypedParameterRemotePtr)ret.params.params_val,
+        ret.params.params_len,
+        REMOTE_NODE_SGX_INFO_MAX,
+        params,
+        nparams) < 0)
+        goto cleanup;
+
+    rv = 0;
+
+ cleanup:
+    xdr_free((xdrproc_t)xdr_remote_node_get_sgx_info_ret, (char *)&ret);
+ done:
+    remoteDriverUnlock(priv);
+    return rv;
+}
+
+
+static int
 remoteNodeGetCPUMap(virConnectPtr conn,
                     unsigned char **cpumap,
                     unsigned int *online,
@@ -8748,6 +8786,7 @@ static virHypervisorDriver hypervisor_driver = {
     .domainCheckpointGetParent = remoteDomainCheckpointGetParent, /* 5.6.0 */
     .domainCheckpointDelete = remoteDomainCheckpointDelete, /* 5.6.0 */
     .domainGetGuestInfo = remoteDomainGetGuestInfo, /* 5.7.0 */
+    .nodeGetSGXInfo = remoteNodeGetSGXInfo,
 };
 
 static virNetworkDriver network_driver = {
